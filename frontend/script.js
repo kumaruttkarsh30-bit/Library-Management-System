@@ -1,42 +1,33 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+let books = JSON.parse(localStorage.getItem("lib_books_v2")) || [
+    { id: 101, title: "Database System Concepts", author: "Abraham Silberschatz", category: "DBMS" },
+    { id: 102, title: "Introduction to Algorithms", author: "Thomas H. Cormen", category: "DSA" },
+    { id: 103, title: "Operating System Concepts", author: "Peter Baer Galvin", category: "OS" },
+    { id: 104, title: "Computer Organization & Architecture", author: "William Stallings", category: "COA" }
+];
 
-const firebaseConfig = {
-    apiKey: "AIzaSyBN56U6pB41707hxDc1qy-ljwuqzZ0I05A",
-    authDomain: "libraryhub-bd652.firebaseapp.com",
-    projectId: "libraryhub-bd652",
-    storageBucket: "libraryhub-bd652.firebasestorage.app",
-    messagingSenderId: "250263355113",
-    appId: "1:250263355113:web:09fd2b5fcb71d040967a78"
-};
+let students = JSON.parse(localStorage.getItem("lib_students_v2")) || [
+    { uid: "25BCS101", name: "Kumar Uttkarsh", dept: "B.E. CSE" },
+    { uid: "25BCS102", name: "Aarav Sharma", dept: "B.E. CSE" },
+    { uid: "25BEC105", name: "Priya Patel", dept: "B.E. ECE" }
+];
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+let issues = JSON.parse(localStorage.getItem("lib_issues_v2")) || [
+    { issueId: 501, bookId: 102, studentUid: "25BCS101", issueDate: "2026-10-20", dueDate: "2026-10-30" }
+];
 
-let books = [];
-let students = [];
-let issues = [];
-
-// Real-time Listeners (Jaise hi kahin change hoga, sab jagah live dikhega)
-onSnapshot(collection(db, "books"), (snapshot) => {
-    books = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
+function saveData() {
+    localStorage.setItem("lib_books_v2", JSON.stringify(books));
+    localStorage.setItem("lib_students_v2", JSON.stringify(students));
+    localStorage.setItem("lib_issues_v2", JSON.stringify(issues));
     renderAll();
-});
-
-onSnapshot(collection(db, "students"), (snapshot) => {
-    students = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
-    renderAll();
-});
-
-onSnapshot(collection(db, "issues"), (snapshot) => {
-    issues = snapshot.docs.map(doc => ({ firebaseId: doc.id, ...doc.data() }));
-    renderAll();
-});
+}
 
 function switchTab(tab) {
     ["dashboard", "books", "students", "issue"].forEach(t => {
-        document.getElementById("view-" + t).style.display = (t === tab) ? "block" : "none";
-        document.getElementById("nav-" + t).classList.toggle("active", t === tab);
+        const viewEl = document.getElementById("view-" + t);
+        const navEl = document.getElementById("nav-" + t);
+        if (viewEl) viewEl.style.display = (t === tab) ? "block" : "none";
+        if (navEl) navEl.classList.toggle("active", t === tab);
     });
     const titles = {
         dashboard: "Library Management Dashboard",
@@ -44,10 +35,10 @@ function switchTab(tab) {
         students: "Student Directory & Registration",
         issue: "Issue & Return Circulation Desk"
     };
-    document.getElementById("page-title").innerText = titles[tab];
+    const titleEl = document.getElementById("page-title");
+    if (titleEl) titleEl.innerText = titles[tab];
     renderAll();
 }
-
 window.switchTab = switchTab;
 
 function isBookIssued(bookId) {
@@ -104,7 +95,7 @@ function renderAll() {
                         <td>${b.category}</td>
                         <td><span class="badge ${issued ? 'issued' : 'available'}">${issued ? 'Issued' : 'Available'}</span></td>
                         <td>
-                            <button class="action-btn delete-btn" onclick="deleteBook('${b.firebaseId}', ${b.id})">Delete</button>
+                            <button class="action-btn delete-btn" onclick="deleteBook(${b.id})">Delete</button>
                         </td>
                     </tr>`;
             });
@@ -122,7 +113,7 @@ function renderAll() {
                     <td>${s.name}</td>
                     <td>${s.dept}</td>
                     <td>${heldCount} Book(s)</td>
-                    <td><button class="action-btn delete-btn" onclick="deleteStudent('${s.firebaseId}', '${s.uid}')">Remove</button></td>
+                    <td><button class="action-btn delete-btn" onclick="deleteStudent('${s.uid}')">Remove</button></td>
                 </tr>`;
         });
     }
@@ -160,26 +151,26 @@ function renderAll() {
                     <td>${iss.issueDate}</td>
                     <td>${iss.dueDate}</td>
                     <td><span class="badge ${overdue ? 'overdue' : 'issued'}">${overdue ? 'Overdue' : 'Active'}</span></td>
-                    <td><button class="action-btn toggle-btn" onclick="returnBook('${iss.firebaseId}')">✅ Mark Returned</button></td>
+                    <td><button class="action-btn toggle-btn" onclick="returnBook(${iss.issueId})">✅ Mark Returned</button></td>
                 </tr>`;
         });
     }
 }
 
-// Add Book to Firestore
-document.getElementById("book-form")?.addEventListener("submit", async e => {
+// Add Book
+document.getElementById("book-form")?.addEventListener("submit", e => {
     e.preventDefault();
     const title = document.getElementById("book-title").value.trim();
     const author = document.getElementById("book-author").value.trim();
     const category = document.getElementById("book-category").value.trim();
-    const nextId = books.length ? Math.max(...books.map(b => b.id || 100)) + 1 : 101;
-    
-    await addDoc(collection(db, "books"), { id: nextId, title, author, category });
+    const nextId = books.length ? Math.max(...books.map(b => b.id)) + 1 : 101;
+    books.push({ id: nextId, title, author, category });
     e.target.reset();
+    saveData();
 });
 
-// Add Student to Firestore
-document.getElementById("student-form")?.addEventListener("submit", async e => {
+// Add Student
+document.getElementById("student-form")?.addEventListener("submit", e => {
     e.preventDefault();
     const uid = document.getElementById("stu-id").value.trim().toUpperCase();
     const name = document.getElementById("stu-name").value.trim();
@@ -188,42 +179,47 @@ document.getElementById("student-form")?.addEventListener("submit", async e => {
         alert("Student with this UID already exists!");
         return;
     }
-    await addDoc(collection(db, "students"), { uid, name, dept });
+    students.push({ uid, name, dept });
     e.target.reset();
+    saveData();
 });
 
-// Issue Book to Firestore
-document.getElementById("issue-form")?.addEventListener("submit", async e => {
+// Issue Book
+document.getElementById("issue-form")?.addEventListener("submit", e => {
     e.preventDefault();
     const bookId = parseInt(document.getElementById("issue-book-select").value);
     const studentUid = document.getElementById("issue-student-select").value;
     const dueDate = document.getElementById("issue-due-date").value;
     const today = new Date().toISOString().split("T")[0];
-    const nextIssueId = issues.length ? Math.max(...issues.map(i => i.issueId || 500)) + 1 : 501;
+    const nextIssueId = issues.length ? Math.max(...issues.map(i => i.issueId)) + 1 : 501;
 
-    await addDoc(collection(db, "issues"), { issueId: nextIssueId, bookId, studentUid, issueDate: today, dueDate });
+    issues.push({ issueId: nextIssueId, bookId, studentUid, issueDate: today, dueDate });
     e.target.reset();
+    saveData();
 });
 
-window.returnBook = async function(firebaseId) {
-    await deleteDoc(doc(db, "issues", firebaseId));
-};
+window.returnBook = function(issueId) {
+    issues = issues.filter(i => i.issueId !== issueId);
+    saveData();
+}
 
-window.deleteBook = async function(firebaseId, id) {
+window.deleteBook = function(id) {
     if (isBookIssued(id)) {
         alert("Cannot delete a book that is currently issued! Return it first.");
         return;
     }
-    await deleteDoc(doc(db, "books", firebaseId));
-};
+    books = books.filter(b => b.id !== id);
+    saveData();
+}
 
-window.deleteStudent = async function(firebaseId, uid) {
+window.deleteStudent = function(uid) {
     if (issues.some(i => i.studentUid === uid)) {
         alert("This student currently holds an issued book! Return the book first.");
         return;
     }
-    await deleteDoc(doc(db, "students", firebaseId));
-};
+    students = students.filter(s => s.uid !== uid);
+    saveData();
+}
 
 // Set default due date
 const dueInput = document.getElementById("issue-due-date");
@@ -232,3 +228,5 @@ if (dueInput) {
     defaultDue.setDate(defaultDue.getDate() + 7);
     dueInput.value = defaultDue.toISOString().split("T")[0];
 }
+
+renderAll();
