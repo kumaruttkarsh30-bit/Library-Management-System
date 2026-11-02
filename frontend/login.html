@@ -1,68 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LibraryHub - Login</title>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; color: white; }
-        .login-card { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 320px; text-align: center; }
-        h2 { margin-bottom: 20px; color: #38bdf8; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #475569; background: #0f172a; color: white; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-        button { width: 100%; padding: 12px; margin: 10px 0; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 15px; transition: background 0.3s; }
-        button:hover { background: #1d4ed8; }
-        .signup-btn { background: #059669; }
-        .signup-btn:hover { background: #047857; }
-        #error-msg { color: #f87171; font-size: 13px; margin-top: 10px; }
-    </style>
-</head>
-<body>
-    <div class="login-card">
-        <h2>LibraryHub Login</h2>
-        <input type="email" id="email" placeholder="Enter Email" required>
-        <input type="password" id="password" placeholder="Enter Password" required>
-        <button onclick="handleLogin()">Login</button>
-        <button class="signup-btn" onclick="handleSignup()">Sign Up</button>
-        <p id="error-msg"></p>
-    </div>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    const firebaseConfig = {
+        apiKey: "AIzaSyBN56U6pB41707hxDc1qy-ljwuqzZ0I05A",
+        authDomain: "libraryhub-bd652.firebaseapp.com",
+        projectId: "libraryhub-bd652",
+        storageBucket: "libraryhub-bd652.firebasestorage.app",
+        messagingSenderId: "250263355113",
+        appId: "1:250263355113:web:09fd2b5fcb71d040967a78"
+    };
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBN56U6pB41707hXDclqy-ljwuqzZ0I05A",
-            authDomain: "libraryhub-bd652.firebaseapp.com",
-            projectId: "libraryhub-bd652",
-            storageBucket: "libraryhub-bd652.firebasestorage.app",
-            messagingSenderId: "250263355113",
-            appId: "1:250263355113:web:09fd2b5fch71d040967a78"
-        };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
+    window.handleLogin = function() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        signInWithEmailAndPassword(auth, email, password)
+            .then(() => { window.location.href = 'index.html'; })
+            .catch((error) => { document.getElementById('error-msg').innerText = error.message; });
+    };
 
-        window.handleLogin = function() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            signInWithEmailAndPassword(auth, email, password)
-                .then(() => { window.location.href = 'index.html'; })
-                .catch((error) => { document.getElementById('error-msg').innerText = error.message; });
-        };
+    window.handleSignup = function() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        createUserWithEmailAndPassword(auth, email, password)
+            .then(() => { alert('Account created successfully! Now click Login.'); })
+            .catch((error) => { document.getElementById('error-msg').innerText = error.message; });
+    };
 
-        window.handleSignup = function() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            createUserWithEmailAndPassword(auth, email, password)
-                .then(() => { alert('Account created successfully! Now click Login.'); })
-                .catch((error) => { document.getElementById('error-msg').innerText = error.message; });
-        };
-
-        onAuthStateChanged(auth, (user) => {
-            if (user && window.location.pathname.includes('login.html')) {
-                window.location.href = 'index.html';
-            }
-        });
-    </script>
-</body>
-</html>
+    onAuthStateChanged(auth, (user) => {
+        if (user && window.location.pathname.includes('login.html')) {
+            window.location.href = 'index.html';
+        }
+    });
+</script>
