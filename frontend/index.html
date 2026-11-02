@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LibraryHub - Complete DBMS Portal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>📚 LibraryHub</h2>
+        <nav>
+            <a href="#" id="nav-dashboard" class="active" onclick="switchTab('dashboard')">📊 Dashboard</a>
+            <a href="#" id="nav-books" onclick="switchTab('books')">📖 Manage Books</a>
+            <a href="#" id="nav-students" onclick="switchTab('students')">🎓 Students</a>
+            <a href="#" id="nav-issue" onclick="switchTab('issue')">🔄 Issue / Return</a>
+        </nav>
+    </div>
+
+    <main class="main-content">
+        <header>
+            <h1 id="page-title">Library Management Dashboard</h1>
+            <p>Real-time DBMS Portal for Books, Students & Circulation Records</p>
+        </header>
+
+        <!-- Stats Cards (Always visible on top) -->
+        <section class="cards">
+            <div class="card" onclick="switchTab('books')">
+                <h3>Total Books</h3>
+                <h2 id="stat-books">0</h2>
+            </div>
+            <div class="card" onclick="switchTab('students')">
+                <h3>Total Students</h3>
+                <h2 id="stat-students">0</h2>
+            </div>
+            <div class="card" onclick="switchTab('issue')">
+                <h3>Books Issued</h3>
+                <h2 id="stat-issued">0</h2>
+            </div>
+            <div class="card overdue-card" onclick="switchTab('issue')">
+                <h3>Overdue Books</h3>
+                <h2 id="stat-overdue">0</h2>
+            </div>
+        </section>
+
+        <!-- 1. DASHBOARD VIEW -->
+        <div id="view-dashboard" class="tab-view">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Quick Book Lookup</h2>
+                    <input type="text" id="dash-search" placeholder="🔍 Search book title, author, or category..." onkeyup="renderAll()">
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Book ID</th>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dash-book-list"></tbody>
+                </table>
+            </section>
+        </div>
+
+        <!-- 2. MANAGE BOOKS VIEW -->
+        <div id="view-books" class="tab-view" style="display:none;">
+            <section class="panel">
+                <h2>Add New Book to Inventory</h2>
+                <form id="book-form" class="form-row">
+                    <input type="text" id="book-title" placeholder="Book Title (e.g., Computer Networks)" required>
+                    <input type="text" id="book-author" placeholder="Author (e.g., Tanenbaum)" required>
+                    <input type="text" id="book-category" placeholder="Category (e.g., CSE / DBMS / OS)" required>
+                    <button type="submit">+ Add Book</button>
+                </form>
+            </section>
+
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>Complete Book Catalog</h2>
+                    <input type="text" id="book-search" placeholder="🔍 Filter catalog..." onkeyup="renderAll()">
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Author</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="book-list"></tbody>
+                </table>
+            </section>
+        </div>
+
+        <!-- 3. STUDENTS VIEW -->
+        <div id="view-students" class="tab-view" style="display:none;">
+            <section class="panel">
+                <h2>Register New Student</h2>
+                <form id="student-form" class="form-row">
+                    <input type="text" id="stu-id" placeholder="UID / Roll No (e.g., 25BCS101)" required>
+                    <input type="text" id="stu-name" placeholder="Student Name" required>
+                    <input type="text" id="stu-dept" placeholder="Branch (e.g., B.E. CSE)" required>
+                    <button type="submit">+ Register Student</button>
+                </form>
+            </section>
+
+            <section class="panel">
+                <h2>Registered Students Directory</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student UID</th>
+                            <th>Full Name</th>
+                            <th>Department</th>
+                            <th>Books Currently Held</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="student-list"></tbody>
+                </table>
+            </section>
+        </div>
+
+        <!-- 4. ISSUE / RETURN VIEW -->
+        <div id="view-issue" class="tab-view" style="display:none;">
+            <section class="panel">
+                <h2>Issue a Book to Student</h2>
+                <form id="issue-form" class="form-row">
+                    <select id="issue-book-select" required>
+                        <option value="">-- Select Available Book --</option>
+                    </select>
+                    <select id="issue-student-select" required>
+                        <option value="">-- Select Student --</option>
+                    </select>
+                    <input type="date" id="issue-due-date" required title="Return Due Date">
+                    <button type="submit">📌 Issue Book</button>
+                </form>
+            </section>
+
+            <section class="panel">
+                <h2>Active Circulation & Return Records</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Issue ID</th>
+                            <th>Book Title</th>
+                            <th>Issued To (Student)</th>
+                            <th>Issue Date</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="issue-list"></tbody>
+                </table>
+            </section>
+        </div>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
