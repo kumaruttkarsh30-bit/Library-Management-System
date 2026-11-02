@@ -1,6 +1,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import sqlite3
+import os
 
 DB_PATH = "library.db"
 
@@ -46,10 +47,36 @@ class LibraryAPI(BaseHTTPRequestHandler):
             books = [{"id": r[0], "title": r[1], "author": r[2], "category": r[3], "issued": bool(r[4])} for r in rows]
             self._send_json(books)
         else:
-            self._send_json({"message": "LibraryHub DBMS Backend Running"}, 200)
+            # Serve frontend static files (html, css, js)
+            if self.path == "/" or self.path == "":
+                filepath = "frontend/login.html"  # Pehle login page khulega
+            else:
+                filepath = "frontend" + self.path
+
+            if os.path.exists(filepath) and os.path.isfile(filepath):
+                with open(filepath, "rb") as f:
+                    content = f.read()
+                
+                content_type = "text/html"
+                if filepath.endswith(".css"):
+                    content_type = "text/css"
+                elif filepath.endswith(".js"):
+                    content_type = "application/javascript"
+                elif filepath.endswith(".json"):
+                    content_type = "application/json"
+
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(content)
+            else:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"404 Not Found")
 
 if __name__ == "__main__":
     init_db()
-    server = HTTPServer(("127.0.0.1", 5000), LibraryAPI)
-    print("DBMS Backend API running on http://127.0.0.1:5000/api/books")
-    server.serve_forever()
+    server = HTTPServer(("0.0.0.0", 5000), LibraryAPI)
+    print("LibraryHub Backend API running...")
+    server.serve_forever() 
