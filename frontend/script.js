@@ -1,232 +1,205 @@
-let books = JSON.parse(localStorage.getItem("lib_books_v2")) || [
-    { id: 101, title: "Database System Concepts", author: "Abraham Silberschatz", category: "DBMS" },
-    { id: 102, title: "Introduction to Algorithms", author: "Thomas H. Cormen", category: "DSA" },
-    { id: 103, title: "Operating System Concepts", author: "Peter Baer Galvin", category: "OS" },
-    { id: 104, title: "Computer Organization & Architecture", author: "William Stallings", category: "COA" }
-];
+const API_BASE = 'https://library-management-system-fskn.onrender.com/api';
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuthState();
 
-let students = JSON.parse(localStorage.getItem("lib_students_v2")) || [
-    { uid: "25BCS101", name: "Kumar Uttkarsh", dept: "B.E. CSE" },
-    { uid: "25BCS102", name: "Aarav Sharma", dept: "B.E. CSE" },
-    { uid: "25BEC105", name: "Priya Patel", dept: "B.E. ECE" }
-];
-
-let issues = JSON.parse(localStorage.getItem("lib_issues_v2")) || [
-    { issueId: 501, bookId: 102, studentUid: "25BCS101", issueDate: "2026-10-20", dueDate: "2026-10-30" }
-];
-
-function saveData() {
-    localStorage.setItem("lib_books_v2", JSON.stringify(books));
-    localStorage.setItem("lib_students_v2", JSON.stringify(students));
-    localStorage.setItem("lib_issues_v2", JSON.stringify(issues));
-    renderAll();
-}
-
-function switchTab(tab) {
-    ["dashboard", "books", "students", "issue"].forEach(t => {
-        const viewEl = document.getElementById("view-" + t);
-        const navEl = document.getElementById("nav-" + t);
-        if (viewEl) viewEl.style.display = (t === tab) ? "block" : "none";
-        if (navEl) navEl.classList.toggle("active", t === tab);
+    // Toggle Login / Signup forms
+    document.getElementById('showSignup')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('loginForm').classList.add('d-none');
+        document.getElementById('signupForm').classList.remove('d-none');
+        document.getElementById('authTitle').innerText = 'Register Account';
     });
-    const titles = {
-        dashboard: "Library Management Dashboard",
-        books: "Manage Book Catalog",
-        students: "Student Directory & Registration",
-        issue: "Issue & Return Circulation Desk"
-    };
-    const titleEl = document.getElementById("page-title");
-    if (titleEl) titleEl.innerText = titles[tab];
-    renderAll();
-}
-window.switchTab = switchTab;
 
-function isBookIssued(bookId) {
-    return issues.some(i => i.bookId == bookId);
-}
+    document.getElementById('showLogin')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('signupForm').classList.add('d-none');
+        document.getElementById('loginForm').classList.remove('d-none');
+        document.getElementById('authTitle').innerText = 'Library Login';
+    });
 
-function isOverdue(dueDateStr) {
-    const today = new Date().toISOString().split("T")[0];
-    return dueDateStr < today;
-}
+    // Login Submit
+    document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
 
-function renderAll() {
-    if (!document.getElementById("stat-books")) return;
-
-    // 1. Update Top Stats
-    document.getElementById("stat-books").innerText = books.length;
-    document.getElementById("stat-students").innerText = students.length;
-    document.getElementById("stat-issued").innerText = issues.length;
-    const overdueCount = issues.filter(i => isOverdue(i.dueDate)).length;
-    document.getElementById("stat-overdue").innerText = overdueCount;
-
-    // 2. Render Dashboard Table
-    const dashQuery = (document.getElementById("dash-search")?.value || "").toLowerCase();
-    const dashTbody = document.getElementById("dash-book-list");
-    if (dashTbody) {
-        dashTbody.innerHTML = "";
-        books.filter(b => (b.title || "").toLowerCase().includes(dashQuery) || (b.author || "").toLowerCase().includes(dashQuery) || (b.category || "").toLowerCase().includes(dashQuery))
-            .forEach(b => {
-                const issued = isBookIssued(b.id);
-                dashTbody.innerHTML += `
-                    <tr>
-                        <td>#${b.id}</td>
-                        <td><strong>${b.title}</strong></td>
-                        <td>${b.author}</td>
-                        <td>${b.category}</td>
-                        <td><span class="badge ${issued ? 'issued' : 'available'}">${issued ? 'Issued' : 'Available'}</span></td>
-                    </tr>`;
-            });
-    }
-
-    // 3. Render Manage Books Table
-    const bookQuery = (document.getElementById("book-search")?.value || "").toLowerCase();
-    const bookTbody = document.getElementById("book-list");
-    if (bookTbody) {
-        bookTbody.innerHTML = "";
-        books.filter(b => (b.title || "").toLowerCase().includes(bookQuery) || (b.author || "").toLowerCase().includes(bookQuery))
-            .forEach(b => {
-                const issued = isBookIssued(b.id);
-                bookTbody.innerHTML += `
-                    <tr>
-                        <td>#${b.id}</td>
-                        <td><strong>${b.title}</strong></td>
-                        <td>${b.author}</td>
-                        <td>${b.category}</td>
-                        <td><span class="badge ${issued ? 'issued' : 'available'}">${issued ? 'Issued' : 'Available'}</span></td>
-                        <td>
-                            <button class="action-btn delete-btn" onclick="deleteBook(${b.id})">Delete</button>
-                        </td>
-                    </tr>`;
-            });
-    }
-
-    // 4. Render Students Table
-    const stuTbody = document.getElementById("student-list");
-    if (stuTbody) {
-        stuTbody.innerHTML = "";
-        students.forEach(s => {
-            const heldCount = issues.filter(i => i.studentUid === s.uid).length;
-            stuTbody.innerHTML += `
-                <tr>
-                    <td><strong>${s.uid}</strong></td>
-                    <td>${s.name}</td>
-                    <td>${s.dept}</td>
-                    <td>${heldCount} Book(s)</td>
-                    <td><button class="action-btn delete-btn" onclick="deleteStudent('${s.uid}')">Remove</button></td>
-                </tr>`;
+        const res = await fetch(`${API_BASE}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
         });
-    }
+        const data = await res.json();
 
-    // 5. Populate Issue Dropdowns
-    const bookSelect = document.getElementById("issue-book-select");
-    if (bookSelect) {
-        bookSelect.innerHTML = '<option value="">-- Select Available Book --</option>';
-        books.filter(b => !isBookIssued(b.id)).forEach(b => {
-            bookSelect.innerHTML += `<option value="${b.id}">#${b.id} - ${b.title}</option>`;
+        if (res.ok) {
+            localStorage.setItem('user', JSON.stringify(data));
+            checkAuthState();
+        } else {
+            alert(data.message || 'Login failed');
+        }
+    });
+
+    // Signup Submit
+    document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('signupUsername').value;
+        const password = document.getElementById('signupPassword').value;
+        const role = document.getElementById('signupRole').value;
+
+        const res = await fetch(`${API_BASE}/signup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role })
         });
-    }
+        const data = await res.json();
 
-    const stuSelect = document.getElementById("issue-student-select");
-    if (stuSelect) {
-        stuSelect.innerHTML = '<option value="">-- Select Student --</option>';
-        students.forEach(s => {
-            stuSelect.innerHTML += `<option value="${s.uid}">${s.uid} - ${s.name}</option>`;
+        if (res.ok) {
+            alert('Account created! Please login.');
+            document.getElementById('showLogin').click();
+        } else {
+            alert(data.message || 'Signup failed');
+        }
+    });
+
+    // Logout
+    document.getElementById('logoutBtn')?.addEventListener('click', () => {
+        localStorage.removeItem('user');
+        location.reload();
+    });
+
+    // Sidebar Tab Navigation
+    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.sidebar .nav-link').forEach(l => l.classList.remove('active'));
+            document.querySelectorAll('.tab-pane-content').forEach(t => t.classList.add('d-none'));
+
+            link.classList.add('active');
+            const target = link.getAttribute('data-bs-target');
+            document.querySelector(target).classList.remove('d-none');
         });
-    }
+    });
 
-    // 6. Render Active Issues Table
-    const issueTbody = document.getElementById("issue-list");
-    if (issueTbody) {
-        issueTbody.innerHTML = "";
-        issues.forEach(iss => {
-            const book = books.find(b => b.id == iss.bookId) || { title: "Unknown Book" };
-            const stu = students.find(s => s.uid === iss.studentUid) || { name: iss.studentUid };
-            const overdue = isOverdue(iss.dueDate);
-            issueTbody.innerHTML += `
-                <tr>
-                    <td>#ISS-${iss.issueId}</td>
-                    <td><strong>${book.title}</strong></td>
-                    <td>${stu.name} (${iss.studentUid})</td>
-                    <td>${iss.issueDate}</td>
-                    <td>${iss.dueDate}</td>
-                    <td><span class="badge ${overdue ? 'overdue' : 'issued'}">${overdue ? 'Overdue' : 'Active'}</span></td>
-                    <td><button class="action-btn toggle-btn" onclick="returnBook(${iss.issueId})">✅ Mark Returned</button></td>
-                </tr>`;
-        });
-    }
-}
-
-// Add Book
-document.getElementById("book-form")?.addEventListener("submit", e => {
-    e.preventDefault();
-    const title = document.getElementById("book-title").value.trim();
-    const author = document.getElementById("book-author").value.trim();
-    const category = document.getElementById("book-category").value.trim();
-    const nextId = books.length ? Math.max(...books.map(b => b.id)) + 1 : 101;
-    books.push({ id: nextId, title, author, category });
-    e.target.reset();
-    saveData();
+    // Forms submission for books, students, issues
+    setupDataForms();
 });
 
-// Add Student
-document.getElementById("student-form")?.addEventListener("submit", e => {
-    e.preventDefault();
-    const uid = document.getElementById("stu-id").value.trim().toUpperCase();
-    const name = document.getElementById("stu-name").value.trim();
-    const dept = document.getElementById("stu-dept").value.trim();
-    if (students.some(s => s.uid === uid)) {
-        alert("Student with this UID already exists!");
-        return;
+function checkAuthState() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user) {
+        document.getElementById('authSection').classList.add('d-none');
+        document.getElementById('dashboardSection').classList.remove('d-none');
+        document.getElementById('loggedInUserDisplay').innerText = `${user.username} (${user.role})`;
+
+        if (user.role !== 'admin') {
+            document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none'));
+        }
+
+        loadBooks();
+        loadStudents();
+        loadIssues();
+    } else {
+        document.getElementById('authSection').classList.remove('d-none');
+        document.getElementById('dashboardSection').classList.add('d-none');
     }
-    students.push({ uid, name, dept });
-    e.target.reset();
-    saveData();
-});
-
-// Issue Book
-document.getElementById("issue-form")?.addEventListener("submit", e => {
-    e.preventDefault();
-    const bookId = parseInt(document.getElementById("issue-book-select").value);
-    const studentUid = document.getElementById("issue-student-select").value;
-    const dueDate = document.getElementById("issue-due-date").value;
-    const today = new Date().toISOString().split("T")[0];
-    const nextIssueId = issues.length ? Math.max(...issues.map(i => i.issueId)) + 1 : 501;
-
-    issues.push({ issueId: nextIssueId, bookId, studentUid, issueDate: today, dueDate });
-    e.target.reset();
-    saveData();
-});
-
-window.returnBook = function(issueId) {
-    issues = issues.filter(i => i.issueId !== issueId);
-    saveData();
 }
 
-window.deleteBook = function(id) {
-    if (isBookIssued(id)) {
-        alert("Cannot delete a book that is currently issued! Return it first.");
-        return;
-    }
-    books = books.filter(b => b.id !== id);
-    saveData();
+function setupDataForms() {
+    document.getElementById('bookForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await fetch(`${API_BASE}/books`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: document.getElementById('bookTitle').value,
+                author: document.getElementById('bookAuthor').value,
+                category: document.getElementById('bookCategory').value
+            })
+        });
+        bootstrap.Modal.getInstance(document.getElementById('addBookModal')).hide();
+        loadBooks();
+    });
+
+    document.getElementById('studentForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await fetch(`${API_BASE}/students`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                uid: document.getElementById('studentUid').value,
+                name: document.getElementById('studentName').value,
+                dept: document.getElementById('studentDept').value
+            })
+        });
+        bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
+        loadStudents();
+    });
+
+    document.getElementById('issueForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await fetch(`${API_BASE}/issues`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bookId: document.getElementById('issueBookId').value,
+                studentUid: document.getElementById('issueStudentUid').value,
+                issueDate: document.getElementById('issueDate').value,
+                dueDate: document.getElementById('dueDate').value
+            })
+        });
+        bootstrap.Modal.getInstance(document.getElementById('addIssueModal')).hide();
+        loadIssues();
+    });
 }
 
-window.deleteStudent = function(uid) {
-    if (issues.some(i => i.studentUid === uid)) {
-        alert("This student currently holds an issued book! Return the book first.");
-        return;
-    }
-    students = students.filter(s => s.uid !== uid);
-    saveData();
+async function loadBooks() {
+    const res = await fetch(`${API_BASE}/books`);
+    const books = await res.json();
+    const user = JSON.parse(localStorage.getItem('user'));
+    const list = document.getElementById('bookList');
+    if (!list) return;
+
+    list.innerHTML = '';
+    books.forEach(b => {
+        let actionBtn = user?.role === 'admin' ? `<td><button onclick="deleteBook(${b.id})" class="btn btn-danger btn-sm">Delete</button></td>` : '';
+        list.innerHTML += `<tr><td>${b.id}</td><td>${b.title}</td><td>${b.author}</td><td>${b.category}</td>${actionBtn}</tr>`;
+    });
 }
 
-// Set default due date
-const dueInput = document.getElementById("issue-due-date");
-if (dueInput) {
-    const defaultDue = new Date();
-    defaultDue.setDate(defaultDue.getDate() + 7);
-    dueInput.value = defaultDue.toISOString().split("T")[0];
+async function deleteBook(id) {
+    await fetch(`${API_BASE}/books/${id}`, { method: 'DELETE' });
+    loadBooks();
 }
 
-renderAll();
+async function loadStudents() {
+    const res = await fetch(`${API_BASE}/students`);
+    const students = await res.json();
+    const list = document.getElementById('studentList');
+    if (!list) return;
+
+    list.innerHTML = '';
+    students.forEach(s => {
+        list.innerHTML += `<tr><td>${s.uid}</td><td>${s.name}</td><td>${s.dept}</td><td><button onclick="deleteStudent('${s.uid}')" class="btn btn-danger btn-sm">Delete</button></td></tr>`;
+    });
+}
+
+async function deleteStudent(uid) {
+    await fetch(`${API_BASE}/students/${uid}`, { method: 'DELETE' });
+    loadStudents();
+}
+
+async function loadIssues() {
+    const res = await fetch(`${API_BASE}/issues`);
+    const issues = await res.json();
+    const list = document.getElementById('issueList');
+    if (!list) return;
+
+    list.innerHTML = '';
+    issues.forEach(i => {
+        list.innerHTML += `<tr><td>${i.issueId}</td><td>${i.bookId}</td><td>${i.studentUid}</td><td>${i.issueDate}</td><td>${i.dueDate}</td><td><button onclick="deleteIssue(${i.issueId})" class="btn btn-danger btn-sm">Return</button></td></tr>`;
+    });
+}
+
+async function deleteIssue(issueId) {
+    await fetch(`${API_BASE}/issues/${issueId}`, { method: 'DELETE' });
+    loadIssues();
+}
