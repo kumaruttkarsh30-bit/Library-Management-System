@@ -1,4 +1,4 @@
-const API_BASE = 'https://library-management-system-fskn.onrender.com/api';
+const API_BASE = '/api';
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthState();
 
