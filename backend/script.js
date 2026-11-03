@@ -23,18 +23,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const username = document.getElementById('loginUsername').value;
         const password = document.getElementById('loginPassword').value;
 
-        const res = await fetch(`${API_BASE}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-        const data = await res.json();
+        try {
+            const res = await fetch(`${API_BASE}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
 
-        if (res.ok) {
-            localStorage.setItem('user', JSON.stringify(data));
-            checkAuthState();
-        } else {
-            alert(data.message || 'Login failed');
+            if (res.ok) {
+                localStorage.setItem('user', JSON.stringify(data));
+                checkAuthState();
+            } else {
+                alert(data.message || 'Login failed');
+            }
+        } catch (err) {
+            console.error('Login error:', err);
+            alert('Server se connect nahi ho paya.');
         }
     });
 
@@ -45,18 +50,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const password = document.getElementById('signupPassword').value;
         const role = document.getElementById('signupRole').value;
 
-        const res = await fetch(`${API_BASE}/signup`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password, role })
-        });
-        const data = await res.json();
+        try {
+            const res = await fetch(`${API_BASE}/signup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, role })
+            });
+            const data = await res.json();
 
-        if (res.ok) {
-            alert('Account created! Please login.');
-            document.getElementById('showLogin').click();
-        } else {
-            alert(data.message || 'Signup failed');
+            if (res.ok) {
+                alert('Account created! Please login.');
+                document.getElementById('showLogin').click();
+            } else {
+                alert(data.message || 'Signup failed');
+            }
+        } catch (err) {
+            console.error('Signup error:', err);
+            alert('Server se connect nahi ho paya.');
         }
     });
 

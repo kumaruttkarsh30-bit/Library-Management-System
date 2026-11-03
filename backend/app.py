@@ -49,7 +49,6 @@ def init_db():
 
 init_db()
 
-# Route to serve frontend index.html
 @app.route('/')
 def serve_index():
     if os.path.exists('index.html'):
