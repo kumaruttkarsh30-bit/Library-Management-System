@@ -49,13 +49,13 @@ def init_db():
 
 init_db()
 
-# Correct route to serve frontend index.html from parent folder
+# Route to serve frontend index.html
 @app.route('/')
 def serve_index():
-    if os.path.exists('../frontend/index.html'):
-        return send_from_directory('../frontend', 'index.html')
-    elif os.path.exists('index.html'):
+    if os.path.exists('index.html'):
         return send_from_directory('.', 'index.html')
+    elif os.path.exists('../frontend/index.html'):
+        return send_from_directory('../frontend', 'index.html')
     return "index.html not found", 404
 
 @app.route('/api/signup', methods=['POST'])
@@ -88,6 +88,15 @@ def login():
 
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    
+    # Emergency fallback: agar admin user database me nahi mila toh apne aap bana dega
+    if not user and username == 'admin':
+        hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
+        conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                     ('admin', hashed_pw, 'admin'))
+        conn.commit()
+        user = conn.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
+
     conn.close()
 
     if user and check_password_hash(user['password'], password):
