@@ -1,82 +1,181 @@
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import json
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 import sqlite3
-import os
+from werkzeug.security import generate_password_hash, check_password_hash
 
-DB_PATH = "library.db"
+app = Flask(__name__)
+CORS(app)
+
+def get_db_connection():
+    conn = sqlite3.connect('library.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS books (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            author TEXT NOT NULL,
-            category TEXT NOT NULL,
-            issued INTEGER DEFAULT 0
-        )
-    """)
-    cursor.execute("SELECT COUNT(*) FROM books")
-    if cursor.fetchone()[0] == 0:
-        sample_books = [
-            (101, "Database System Concepts", "Abraham Silberschatz", "DBMS", 0),
-            (102, "Introduction to Algorithms", "Thomas H. Cormen", "DSA", 1),
-            (103, "Operating System Concepts", "Peter Baer Galvin", "OS", 0),
-            (104, "Clean Code", "Robert C. Martin", "Software Eng", 0)
-        ]
-        cursor.executemany("INSERT INTO books VALUES (?, ?, ?, ?, ?)", sample_books)
-    conn.commit()
+    conn = get_db_connection()
+    # Books Table
+    conn.execute('''CREATE TABLE IF NOT EXISTS books (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        category TEXT NOT NULL)''')
+    
+    # Students Table
+    conn.execute('''CREATE TABLE IF NOT EXISTS students (
+                        uid TEXT PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        dept TEXT NOT NULL)''')
+    
+    # Issues Table
+    conn.execute('''CREATE TABLE IF NOT EXISTS issues (
+                        issueId INTEGER PRIMARY KEY AUTOINCREMENT,
+                        bookId INTEGER,
+                        studentUid TEXT,
+                        issueDate TEXT,
+                        dueDate TEXT)''')
+
+    # Users Table (For Login/Signup & Admin Panel)
+    conn.execute('''CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL,
+                        password TEXT NOT NULL,
+                        role TEXT NOT NULL)''')
+    
+    # Default Admin Account create kar lo agar pehle se na ho
+    admin_check = conn.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
+    if not admin_check:
+        hashed_pw = generate_password_hash('admin123')
+        conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                     ('admin', hashed_pw, 'admin'))
+        conn.commit()
+
     conn.close()
 
-class LibraryAPI(BaseHTTPRequestHandler):
-    def _send_json(self, data, status=200):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data).encode())
+init_db()
 
-    def do_GET(self):
-        if self.path == "/api/books":
-            conn = sqlite3.connect(DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute("SELECT id, title, author, category, issued FROM books")
-            rows = cursor.fetchall()
-            conn.close()
-            books = [{"id": r[0], "title": r[1], "author": r[2], "category": r[3], "issued": bool(r[4])} for r in rows]
-            self._send_json(books)
-        else:
-            # Serve frontend static files (html, css, js)
-            if self.path == "/" or self.path == "":
-                filepath = "frontend/login.html"  # Pehle login page khulega
-            else:
-                filepath = "frontend" + self.path
+# --- AUTHENTICATION APIs ---
+@app.route('/api/signup', methods=['POST'])
+def signup():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+    role = data.get('role', 'student') # default role student
 
-            if os.path.exists(filepath) and os.path.isfile(filepath):
-                with open(filepath, "rb") as f:
-                    content = f.read()
-                
-                content_type = "text/html"
-                if filepath.endswith(".css"):
-                    content_type = "text/css"
-                elif filepath.endswith(".js"):
-                    content_type = "application/javascript"
-                elif filepath.endswith(".json"):
-                    content_type = "application/json"
+    if not username or not password:
+        return jsonify({"status": "error", "message": "Username and password required"}), 400
 
-                self.send_response(200)
-                self.send_header("Content-Type", content_type)
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(content)
-            else:
-                self.send_response(404)
-                self.end_headers()
-                self.wfile.write(b"404 Not Found")
+    hashed_pw = generate_password_hash(password)
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                     (username, hashed_pw, role))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({"status": "error", "message": "Username already exists"}), 400
+    conn.close()
+    return jsonify({"status": "success", "message": "User registered successfully"})
 
-if __name__ == "__main__":
-    init_db()
-    server = HTTPServer(("0.0.0.0", 5000), LibraryAPI)
-    print("LibraryHub Backend API running...")
-    server.serve_forever() 
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get('username')
+    password = data.get('password')
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    conn.close()
+
+    if user and check_password_hash(user['password'], password):
+        return jsonify({
+            "status": "success",
+            "message": "Login successful",
+            "role": user['role'],
+            "username": user['username']
+        })
+    return jsonify({"status": "error", "message": "Invalid username or password"}), 401
+
+# --- BOOKS API ---
+@app.route('/api/books', methods=['GET'])
+def get_books():
+    conn = get_db_connection()
+    books = conn.execute('SELECT * FROM books').fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in books])
+
+@app.route('/api/books', methods=['POST'])
+def add_book():
+    data = request.json
+    conn = get_db_connection()
+    conn.execute('INSERT INTO books (title, author, category) VALUES (?, ?, ?)',
+                 (data['title'], data['author'], data['category']))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+@app.route('/api/books/<int:id>', methods=['DELETE'])
+def delete_book(id):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM books WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+# --- STUDENTS API ---
+@app.route('/api/students', methods=['GET'])
+def get_students():
+    conn = get_db_connection()
+    students = conn.execute('SELECT * FROM students').fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in students])
+
+@app.route('/api/students', methods=['POST'])
+def add_student():
+    data = request.json
+    conn = get_db_connection()
+    try:
+        conn.execute('INSERT INTO students (uid, name, dept) VALUES (?, ?, ?)',
+                     (data['uid'], data['name'], data['dept']))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return jsonify({"status": "error", "message": "Student already exists"}), 400
+    conn.close()
+    return jsonify({"status": "success"})
+
+@app.route('/api/students/<string:uid>', methods=['DELETE'])
+def delete_student(uid):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM students WHERE uid = ?', (uid,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+# --- ISSUES API ---
+@app.route('/api/issues', methods=['GET'])
+def get_issues():
+    conn = get_db_connection()
+    issues = conn.execute('SELECT * FROM issues').fetchall()
+    conn.close()
+    return jsonify([dict(row) for row in issues])
+
+@app.route('/api/issues', methods=['POST'])
+def add_issue():
+    data = request.json
+    conn = get_db_connection()
+    conn.execute('INSERT INTO issues (bookId, studentUid, issueDate, dueDate) VALUES (?, ?, ?, ?)',
+                 (data['bookId'], data['studentUid'], data['issueDate'], data['dueDate']))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+@app.route('/api/issues/<int:issueId>', methods=['DELETE'])
+def delete_issue(issueId):
+    conn = get_db_connection()
+    conn.execute('DELETE FROM issues WHERE issueId = ?', (issueId,))
+    conn.commit()
+    conn.close()
+    return jsonify({"status": "success"})
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5001)
