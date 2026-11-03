@@ -59,7 +59,7 @@ def serve_index():
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
-    data = request.json
+    data = request.json or {}
     username = data.get('username')
     password = data.get('password')
     role = data.get('role', 'student')
@@ -81,14 +81,13 @@ def signup():
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.json
+    data = request.json or {}
     username = data.get('username')
     password = data.get('password')
 
     conn = get_db_connection()
     user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
     
-    # Emergency fallback: agar admin user database me nahi mila toh apne aap bana dega
     if not user and username == 'admin':
         hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
         conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
@@ -116,10 +115,10 @@ def get_books():
 
 @app.route('/api/books', methods=['POST'])
 def add_book():
-    data = request.json
+    data = request.json or {}
     conn = get_db_connection()
     conn.execute('INSERT INTO books (title, author, category) VALUES (?, ?, ?)',
-                 (data['title'], data['author'], data['category']))
+                 (data.get('title'), data.get('author'), data.get('category')))
     conn.commit()
     conn.close()
     return jsonify({"status": "success"})
@@ -141,11 +140,11 @@ def get_students():
 
 @app.route('/api/students', methods=['POST'])
 def add_student():
-    data = request.json
+    data = request.json or {}
     conn = get_db_connection()
     try:
         conn.execute('INSERT INTO students (uid, name, dept) VALUES (?, ?, ?)',
-                     (data['uid'], data['name'], data['dept']))
+                     (data.get('uid'), data.get('name'), data.get('dept')))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
@@ -170,10 +169,10 @@ def get_issues():
 
 @app.route('/api/issues', methods=['POST'])
 def add_issue():
-    data = request.json
+    data = request.json or {}
     conn = get_db_connection()
     conn.execute('INSERT INTO issues (bookId, studentUid, issueDate, dueDate) VALUES (?, ?, ?, ?)',
-                 (data['bookId'], data['studentUid'], data['issueDate'], data['dueDate']))
+                 (data.get('bookId'), data.get('studentUid'), data.get('issueDate'), data.get('dueDate')))
     conn.commit()
     conn.close()
     return jsonify({"status": "success"})

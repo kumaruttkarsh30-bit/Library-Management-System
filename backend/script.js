@@ -1,27 +1,34 @@
 const API_BASE = '/api';
+
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthState();
 
     // Toggle Login / Signup forms
     document.getElementById('showSignup')?.addEventListener('click', (e) => {
         e.preventDefault();
-        document.getElementById('loginForm').classList.add('d-none');
-        document.getElementById('signupForm').classList.remove('d-none');
-        document.getElementById('authTitle').innerText = 'Register Account';
+        document.getElementById('loginForm')?.parentElement?.classList?.add('d-none');
+        document.getElementById('signupForm')?.parentElement?.classList?.remove('d-none');
+        const title = document.getElementById('authTitle');
+        if (title) title.innerText = 'Register Account';
     });
 
     document.getElementById('showLogin')?.addEventListener('click', (e) => {
         e.preventDefault();
-        document.getElementById('signupForm').classList.add('d-none');
-        document.getElementById('loginForm').classList.remove('d-none');
-        document.getElementById('authTitle').innerText = 'Library Login';
+        document.getElementById('signupForm')?.parentElement?.classList?.add('d-none');
+        document.getElementById('loginForm')?.parentElement?.classList?.remove('d-none');
+        const title = document.getElementById('authTitle');
+        if (title) title.innerText = 'Library Login';
     });
 
     // Login Submit
     document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('loginUsername').value;
-        const password = document.getElementById('loginPassword').value;
+        const usernameInput = document.getElementById('loginUsername');
+        const passwordInput = document.getElementById('loginPassword');
+        if (!usernameInput || !passwordInput) return;
+
+        const username = usernameInput.value;
+        const password = passwordInput.value;
 
         try {
             const res = await fetch(`${API_BASE}/login`, {
@@ -39,16 +46,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error('Login error:', err);
-            alert('Server se connect nahi ho paya.');
+            alert('Server connection error.');
         }
     });
 
     // Signup Submit
     document.getElementById('signupForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const username = document.getElementById('signupUsername').value;
-        const password = document.getElementById('signupPassword').value;
-        const role = document.getElementById('signupRole').value;
+        const username = document.getElementById('signupUsername')?.value;
+        const password = document.getElementById('signupPassword')?.value;
+        const role = document.getElementById('signupRole')?.value || 'student';
 
         try {
             const res = await fetch(`${API_BASE}/signup`, {
@@ -60,13 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (res.ok) {
                 alert('Account created! Please login.');
-                document.getElementById('showLogin').click();
+                document.getElementById('showLogin')?.click();
             } else {
                 alert(data.message || 'Signup failed');
             }
         } catch (err) {
             console.error('Signup error:', err);
-            alert('Server se connect nahi ho paya.');
+            alert('Server connection error.');
         }
     });
 
@@ -85,32 +92,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
             link.classList.add('active');
             const target = link.getAttribute('data-bs-target');
-            document.querySelector(target).classList.remove('d-none');
+            if (target) document.querySelector(target)?.classList.remove('d-none');
         });
     });
 
-    // Forms submission for books, students, issues
     setupDataForms();
 });
 
 function checkAuthState() {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user) {
-        document.getElementById('authSection').classList.add('d-none');
-        document.getElementById('dashboardSection').classList.remove('d-none');
-        document.getElementById('loggedInUserDisplay').innerText = `${user.username} (${user.role})`;
+    const userStr = localStorage.getItem('user');
+    const authSection = document.getElementById('authSection');
+    const dashboardSection = document.getElementById('dashboardSection');
 
-        if (user.role !== 'admin') {
-            document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none'));
+    if (userStr) {
+        try {
+            const user = JSON.parse(userStr);
+            if (authSection) authSection.classList.add('d-none');
+            if (dashboardSection) dashboardSection.classList.remove('d-none');
+            
+            const userDisplay = document.getElementById('loggedInUserDisplay');
+            if (userDisplay) userDisplay.innerText = `${user.username} (${user.role})`;
+
+            if (user.role !== 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none'));
+            }
+
+            loadBooks();
+            loadStudents();
+            loadIssues();
+            return;
+        } catch (e) {
+            localStorage.removeItem('user');
         }
-
-        loadBooks();
-        loadStudents();
-        loadIssues();
-    } else {
-        document.getElementById('authSection').classList.remove('d-none');
-        document.getElementById('dashboardSection').classList.add('d-none');
     }
+    
+    if (authSection) authSection.classList.remove('d-none');
+    if (dashboardSection) dashboardSection.classList.add('d-none');
 }
 
 function setupDataForms() {
@@ -120,12 +137,13 @@ function setupDataForms() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                title: document.getElementById('bookTitle').value,
-                author: document.getElementById('bookAuthor').value,
-                category: document.getElementById('bookCategory').value
+                title: document.getElementById('bookTitle')?.value,
+                author: document.getElementById('bookAuthor')?.value,
+                category: document.getElementById('bookCategory')?.value
             })
         });
-        bootstrap.Modal.getInstance(document.getElementById('addBookModal')).hide();
+        const modalEl = document.getElementById('addBookModal');
+        if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
         loadBooks();
     });
 
@@ -135,12 +153,13 @@ function setupDataForms() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                uid: document.getElementById('studentUid').value,
-                name: document.getElementById('studentName').value,
-                dept: document.getElementById('studentDept').value
+                uid: document.getElementById('studentUid')?.value,
+                name: document.getElementById('studentName')?.value,
+                dept: document.getElementById('studentDept')?.value
             })
         });
-        bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
+        const modalEl = document.getElementById('addStudentModal');
+        if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
         loadStudents();
     });
 
@@ -150,29 +169,32 @@ function setupDataForms() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                bookId: document.getElementById('issueBookId').value,
-                studentUid: document.getElementById('issueStudentUid').value,
-                issueDate: document.getElementById('issueDate').value,
-                dueDate: document.getElementById('dueDate').value
+                bookId: document.getElementById('issueBookId')?.value,
+                studentUid: document.getElementById('issueStudentUid')?.value,
+                issueDate: document.getElementById('issueDate')?.value,
+                dueDate: document.getElementById('dueDate')?.value
             })
         });
-        bootstrap.Modal.getInstance(document.getElementById('addIssueModal')).hide();
+        const modalEl = document.getElementById('addIssueModal');
+        if (modalEl) bootstrap.Modal.getInstance(modalEl)?.hide();
         loadIssues();
     });
 }
 
 async function loadBooks() {
-    const res = await fetch(`${API_BASE}/books`);
-    const books = await res.json();
-    const user = JSON.parse(localStorage.getItem('user'));
-    const list = document.getElementById('bookList');
-    if (!list) return;
+    try {
+        const res = await fetch(`${API_BASE}/books`);
+        const books = await res.json();
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const list = document.getElementById('bookList');
+        if (!list) return;
 
-    list.innerHTML = '';
-    books.forEach(b => {
-        let actionBtn = user?.role === 'admin' ? `<td><button onclick="deleteBook(${b.id})" class="btn btn-danger btn-sm">Delete</button></td>` : '';
-        list.innerHTML += `<tr><td>${b.id}</td><td>${b.title}</td><td>${b.author}</td><td>${b.category}</td>${actionBtn}</tr>`;
-    });
+        list.innerHTML = '';
+        books.forEach(b => {
+            let actionBtn = user?.role === 'admin' ? `<td><button onclick="deleteBook(${b.id})" class="btn btn-danger btn-sm">Delete</button></td>` : '';
+            list.innerHTML += `<tr><td>${b.id}</td><td>${b.title}</td><td>${b.author}</td><td>${b.category}</td>${actionBtn}</tr>`;
+        });
+    } catch (err) { console.error(err); }
 }
 
 async function deleteBook(id) {
@@ -181,15 +203,17 @@ async function deleteBook(id) {
 }
 
 async function loadStudents() {
-    const res = await fetch(`${API_BASE}/students`);
-    const students = await res.json();
-    const list = document.getElementById('studentList');
-    if (!list) return;
+    try {
+        const res = await fetch(`${API_BASE}/students`);
+        const students = await res.json();
+        const list = document.getElementById('studentList');
+        if (!list) return;
 
-    list.innerHTML = '';
-    students.forEach(s => {
-        list.innerHTML += `<tr><td>${s.uid}</td><td>${s.name}</td><td>${s.dept}</td><td><button onclick="deleteStudent('${s.uid}')" class="btn btn-danger btn-sm">Delete</button></td></tr>`;
-    });
+        list.innerHTML = '';
+        students.forEach(s => {
+            list.innerHTML += `<tr><td>${s.uid}</td><td>${s.name}</td><td>${s.dept}</td><td><button onclick="deleteStudent('${s.uid}')" class="btn btn-danger btn-sm">Delete</button></td></tr>`;
+        });
+    } catch (err) { console.error(err); }
 }
 
 async function deleteStudent(uid) {
@@ -198,15 +222,17 @@ async function deleteStudent(uid) {
 }
 
 async function loadIssues() {
-    const res = await fetch(`${API_BASE}/issues`);
-    const issues = await res.json();
-    const list = document.getElementById('issueList');
-    if (!list) return;
+    try {
+        const res = await fetch(`${API_BASE}/issues`);
+        const issues = await res.json();
+        const list = document.getElementById('issueList');
+        if (!list) return;
 
-    list.innerHTML = '';
-    issues.forEach(i => {
-        list.innerHTML += `<tr><td>${i.issueId}</td><td>${i.bookId}</td><td>${i.studentUid}</td><td>${i.issueDate}</td><td>${i.dueDate}</td><td><button onclick="deleteIssue(${i.issueId})" class="btn btn-danger btn-sm">Return</button></td></tr>`;
-    });
+        list.innerHTML = '';
+        issues.forEach(i => {
+            list.innerHTML += `<tr><td>${i.issueId}</td><td>${i.bookId}</td><td>${i.studentUid}</td><td>${i.issueDate}</td><td>${i.dueDate}</td><td><button onclick="deleteIssue(${i.issueId})" class="btn btn-danger btn-sm">Return</button></td></tr>`;
+        });
+    } catch (err) { console.error(err); }
 }
 
 async function deleteIssue(issueId) {
