@@ -13,20 +13,17 @@ def get_db_connection():
 
 def init_db():
     conn = get_db_connection()
-    # Books Table
     conn.execute('''CREATE TABLE IF NOT EXISTS books (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         title TEXT NOT NULL,
                         author TEXT NOT NULL,
                         category TEXT NOT NULL)''')
     
-    # Students Table
     conn.execute('''CREATE TABLE IF NOT EXISTS students (
                         uid TEXT PRIMARY KEY,
                         name TEXT NOT NULL,
                         dept TEXT NOT NULL)''')
     
-    # Issues Table
     conn.execute('''CREATE TABLE IF NOT EXISTS issues (
                         issueId INTEGER PRIMARY KEY AUTOINCREMENT,
                         bookId INTEGER,
@@ -34,17 +31,15 @@ def init_db():
                         issueDate TEXT,
                         dueDate TEXT)''')
 
-    # Users Table (For Login/Signup & Admin Panel)
     conn.execute('''CREATE TABLE IF NOT EXISTS users (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         username TEXT UNIQUE NOT NULL,
                         password TEXT NOT NULL,
                         role TEXT NOT NULL)''')
     
-    # Default Admin Account create kar lo agar pehle se na ho
     admin_check = conn.execute('SELECT * FROM users WHERE username = ?', ('admin',)).fetchone()
     if not admin_check:
-        hashed_pw = generate_password_hash('admin123')
+        hashed_pw = generate_password_hash('admin123', method='pbkdf2:sha256')
         conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
                      ('admin', hashed_pw, 'admin'))
         conn.commit()
@@ -53,18 +48,17 @@ def init_db():
 
 init_db()
 
-# --- AUTHENTICATION APIs ---
 @app.route('/api/signup', methods=['POST'])
 def signup():
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    role = data.get('role', 'student') # default role student
+    role = data.get('role', 'student')
 
     if not username or not password:
         return jsonify({"status": "error", "message": "Username and password required"}), 400
 
-    hashed_pw = generate_password_hash(password)
+    hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
     conn = get_db_connection()
     try:
         conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
@@ -95,7 +89,6 @@ def login():
         })
     return jsonify({"status": "error", "message": "Invalid username or password"}), 401
 
-# --- BOOKS API ---
 @app.route('/api/books', methods=['GET'])
 def get_books():
     conn = get_db_connection()
@@ -121,7 +114,6 @@ def delete_book(id):
     conn.close()
     return jsonify({"status": "success"})
 
-# --- STUDENTS API ---
 @app.route('/api/students', methods=['GET'])
 def get_students():
     conn = get_db_connection()
@@ -151,7 +143,6 @@ def delete_student(uid):
     conn.close()
     return jsonify({"status": "success"})
 
-# --- ISSUES API ---
 @app.route('/api/issues', methods=['GET'])
 def get_issues():
     conn = get_db_connection()
