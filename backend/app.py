@@ -1,3 +1,9 @@
+from flask import send_from_directory
+import os
+
+@app.route('/')
+def serve_index():
+    return send_from_directory('../', 'index.html') # ya agar index.html backend folder me hai toh sirf 'index.html'
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
