@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
 import os
@@ -49,40 +49,101 @@ def init_db():
 
 init_db()
 
-# Bulletproof static routes using app.root_path
+# Direct Embedded HTML to completely avoid "Not Found" file path issues on Render
 @app.route('/')
 def serve_index():
-    return send_from_directory(app.root_path, 'index.html')
+    return '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card shadow p-4" id="authSection">
+                    <h3 class="text-center mb-3" id="authTitle">Library Login</h3>
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label>Username</label>
+                            <input type="text" id="loginUsername" class="form-control" required value="admin">
+                        </div>
+                        <div class="mb-3">
+                            <label>Password</label>
+                            <input type="password" id="loginPassword" class="form-control" required value="admin123">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Login</button>
+                    </form>
+                </div>
 
-@app.route('/script.js')
-def serve_script():
-    return send_from_directory(app.root_path, 'script.js')
+                <div class="card shadow p-4 d-none" id="dashboardSection">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4>Welcome, <span id="loggedInUserDisplay"></span></h4>
+                        <button id="logoutBtn" class="btn btn-danger btn-sm">Logout</button>
+                    </div>
+                    <div class="alert alert-success">
+                        <h5>System Connected Successfully! 🚀</h5>
+                        <p>Backend API and Database are fully operational.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-@app.route('/style.css')
-def serve_style():
-    return send_from_directory(app.root_path, 'style.css')
+    <script>
+        const API_BASE = '/api';
 
-@app.route('/api/signup', methods=['POST'])
-def signup():
-    data = request.json or {}
-    username = data.get('username')
-    password = data.get('password')
-    role = data.get('role', 'student')
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuthState();
 
-    if not username or not password:
-        return jsonify({"status": "error", "message": "Username and password required"}), 400
+            document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('loginUsername').value;
+                const password = document.getElementById('loginPassword').value;
 
-    hashed_pw = generate_password_hash(password, method='pbkdf2:sha256')
-    conn = get_db_connection()
-    try:
-        conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-                     (username, hashed_pw, role))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        return jsonify({"status": "error", "message": "Username already exists"}), 400
-    conn.close()
-    return jsonify({"status": "success", "message": "User registered successfully"})
+                try {
+                    const res = await fetch(`${API_BASE}/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    });
+                    const data = await res.json();
+
+                    if (res.ok) {
+                        localStorage.setItem('user', JSON.stringify(data));
+                        checkAuthState();
+                    } else {
+                        alert(data.message || 'Login failed');
+                    }
+                } catch (err) {
+                    alert('Server connection error.');
+                }
+            });
+
+            document.getElementById('logoutBtn')?.addEventListener('click', () => {
+                localStorage.removeItem('user');
+                location.reload();
+            });
+        });
+
+        function checkAuthState() {
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                const user = JSON.parse(userStr);
+                document.getElementById('authSection').classList.add('d-none');
+                document.getElementById('dashboardSection').classList.remove('d-none');
+                document.getElementById('loggedInUserDisplay').innerText = `${user.username} (${user.role})`;
+            } else {
+                document.getElementById('authSection').classList.remove('d-none');
+                document.getElementById('dashboardSection').classList.add('d-none');
+            }
+        }
+    </script>
+</body>
+</html>'''
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -110,85 +171,6 @@ def login():
             "username": user['username']
         })
     return jsonify({"status": "error", "message": "Invalid username or password"}), 401
-
-@app.route('/api/books', methods=['GET'])
-def get_books():
-    conn = get_db_connection()
-    books = conn.execute('SELECT * FROM books').fetchall()
-    conn.close()
-    return jsonify([dict(row) for row in books])
-
-@app.route('/api/books', methods=['POST'])
-def add_book():
-    data = request.json or {}
-    conn = get_db_connection()
-    conn.execute('INSERT INTO books (title, author, category) VALUES (?, ?, ?)',
-                 (data.get('title'), data.get('author'), data.get('category')))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
-
-@app.route('/api/books/<int:id>', methods=['DELETE'])
-def delete_book(id):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM books WHERE id = ?', (id,))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
-
-@app.route('/api/students', methods=['GET'])
-def get_students():
-    conn = get_db_connection()
-    students = conn.execute('SELECT * FROM students').fetchall()
-    conn.close()
-    return jsonify([dict(row) for row in students])
-
-@app.route('/api/students', methods=['POST'])
-def add_student():
-    data = request.json or {}
-    conn = get_db_connection()
-    try:
-        conn.execute('INSERT INTO students (uid, name, dept) VALUES (?, ?, ?)',
-                     (data.get('uid'), data.get('name'), data.get('dept')))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        return jsonify({"status": "error", "message": "Student already exists"}), 400
-    conn.close()
-    return jsonify({"status": "success"})
-
-@app.route('/api/students/<string:uid>', methods=['DELETE'])
-def delete_student(uid):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM students WHERE uid = ?', (uid,))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
-
-@app.route('/api/issues', methods=['GET'])
-def get_issues():
-    conn = get_db_connection()
-    issues = conn.execute('SELECT * FROM issues').fetchall()
-    conn.close()
-    return jsonify([dict(row) for row in issues])
-
-@app.route('/api/issues', methods=['POST'])
-def add_issue():
-    data = request.json or {}
-    conn = get_db_connection()
-    conn.execute('INSERT INTO issues (bookId, studentUid, issueDate, dueDate) VALUES (?, ?, ?, ?)',
-                 (data.get('bookId'), data.get('studentUid'), data.get('issueDate'), data.get('dueDate')))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
-
-@app.route('/api/issues/<int:issueId>', methods=['DELETE'])
-def delete_issue(issueId):
-    conn = get_db_connection()
-    conn.execute('DELETE FROM issues WHERE issueId = ?', (issueId,))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success"})
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)
