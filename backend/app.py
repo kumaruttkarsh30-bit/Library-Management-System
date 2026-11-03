@@ -49,13 +49,33 @@ def init_db():
 
 init_db()
 
+# Bulletproof routes to serve frontend files from any possible location
 @app.route('/')
 def serve_index():
-    if os.path.exists('index.html'):
-        return send_from_directory('.', 'index.html')
-    elif os.path.exists('../frontend/index.html'):
-        return send_from_directory('../frontend', 'index.html')
+    paths = ['index.html', 'backend/index.html', '../frontend/index.html', 'frontend/index.html']
+    for p in paths:
+        if os.path.exists(p):
+            directory, filename = os.path.split(p)
+            return send_from_directory(directory if directory else '.', filename)
     return "index.html not found", 404
+
+@app.route('/script.js')
+def serve_script():
+    paths = ['script.js', 'backend/script.js', '../frontend/script.js', 'frontend/script.js']
+    for p in paths:
+        if os.path.exists(p):
+            directory, filename = os.path.split(p)
+            return send_from_directory(directory if directory else '.', filename)
+    return "script.js not found", 404
+
+@app.route('/style.css')
+def serve_style():
+    paths = ['style.css', 'backend/style.css', '../frontend/style.css', 'frontend/style.css', 'style.css']
+    for p in paths:
+        if os.path.exists(p):
+            directory, filename = os.path.split(p)
+            return send_from_directory(directory if directory else '.', filename)
+    return "style.css not found", 404
 
 @app.route('/api/signup', methods=['POST'])
 def signup():
